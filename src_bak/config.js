@@ -9,7 +9,7 @@
   encoding: "UTF-8",
 
   // 每个时间节点最多显示的条目数。
-  max_number: 10,
+  max_number: 20,
 
   // 控制是否显示顶部附加信息文字。
   showMessage: true,
@@ -22,16 +22,16 @@
   auto_sort: false,
 
   // 时间格式化
-  timeFormat: "%Y",
+  timeFormat: "%Y-%m-%d",
 
   // 倒序，使得最短的条位于最上方
   reverse: false,
 
   // 类型根据什么字段区分？如果是name，则关闭类型显示
-  divide_by: "Country_Name",
+  divide_by: "type",
 
   // 颜色根据什么字段区分？
-  divide_color_by: "Country_Name",
+  divide_color_by: "type",
 
   // 字段的值与其对应的颜色值
   color: {
@@ -46,10 +46,10 @@
 
   // 附加信息内容。
   // left label
-  itemLabel: "榜首国家：",
+  itemLabel: "左侧文字",
 
   // right label
-  typeLabel: "保持年数：",
+  typeLabel: "右侧文字",
   // 榜首项目信息的水平位置 。
   item_x: 250,
 
@@ -154,11 +154,5 @@
 
   // 限制bar info 展示的长度
   // limit bar info display length
-  bar_name_max: 30,
-  
-  // 数据起始年份
-  start_year: 1960,
-  
-  // 数据年份年数
-  total_year: 57,
+  bar_name_max: 30
 };

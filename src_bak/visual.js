@@ -12,12 +12,9 @@
 $("#inputfile").change(function () {
   $("#inputfile").attr("hidden", true);
   var r = new FileReader();
-  // config是html文件通过<script>标签导入的全局变量
   r.readAsText(this.files[0], config.encoding);
   r.onload = function () {
-    // 读取完成后，数据保存在对象的result属性中
-    // result本质上是cvs文件的文本
-    // 返回的data是一个列表，各列表成员以首行为key，key同列值为value
+    //读取完成后，数据保存在对象的result属性中
     var data = d3.csvParse(this.result);
     try {
       draw(data);
@@ -27,10 +24,20 @@ $("#inputfile").change(function () {
   };
 });
 
-// 以下内容都只是这一个函数
 function draw(data) {
+  var date = [];
+  data.forEach(element => {
+    if (date.indexOf(element["date"]) == -1) {
+      date.push(element["date"]);
+    }
+  });
   let rate = [];
   var auto_sort = config.auto_sort;
+  if (auto_sort) {
+    var time = date.sort((x, y) => new Date(x) - new Date(y));
+  } else {
+    var time = date;
+  }
   var use_semilogarithmic_coordinate = config.use_semilogarithmic_coordinate;
   var big_value = config.big_value;
   var divide_by = config.divide_by;
@@ -51,7 +58,7 @@ function draw(data) {
     var r = 0.0;
     if (changeable_color) {
       var v =
-        Math.abs(rate[Country_Name] - rate["MIN_RATE"]) /
+        Math.abs(rate[d.name] - rate["MIN_RATE"]) /
         (rate["MAX_RATE"] - rate["MIN_RATE"]);
       if (isNaN(v) || v == -1) {
         return colorRange(0.6);
@@ -79,7 +86,7 @@ function draw(data) {
   // 显示类型
   if (config.use_type_info) {
     var use_type_info = config.use_type_info;
-  } else if (divide_by != "Country_Name") {
+  } else if (divide_by != "name") {
     var use_type_info = true;
   } else {
     var use_type_info = false;
@@ -115,8 +122,7 @@ function draw(data) {
   var enter_from_0 = config.enter_from_0;
   interval_time /= 3;
   var lastData = [];
-  var currentdate = config.start_year;
-  var tmp_currentdate = currentdate.toString()
+  var currentdate = time[0].toString();
   var currentData = [];
   var lastname;
   const svg = d3.select("svg");
@@ -127,7 +133,7 @@ function draw(data) {
   const innerHeight = height - margin.top - margin.bottom - 32;
   //var dateLabel_y = height - margin.top - margin.bottom - 32;;
   const xValue = d => Number(d.value);
-  const yValue = d => d.Country_Name;
+  const yValue = d => d.name;
 
   const g = svg
     .append("g")
@@ -187,11 +193,10 @@ function draw(data) {
   } else {
     dateLabel_switch = "visible";
   }
-  
-  // 右下角的年份标签在这设置
+
   var dateLabel = g
     .insert("text")
-    .data(tmp_currentdate)
+    .data(currentdate)
     .attr("class", "dateLabel")
     .attr("style:visibility", dateLabel_switch)
     .attr("x", dateLabel_x)
@@ -199,7 +204,7 @@ function draw(data) {
     .attr("text-anchor", function () {
       return "end";
     })
-    .text(tmp_currentdate);
+    .text(currentdate);
 
   var topLabel = g
     .insert("text")
@@ -207,18 +212,17 @@ function draw(data) {
     .attr("x", item_x)
     .attr("y", text_y);
 
-  // 按value列完成对cunrrentData中的成员从大到小的排序
   function dataSort() {
     if (reverse) {
       currentData.sort(function (a, b) {
         if (Number(a.value) == Number(b.value)) {
           var r1 = 0;
           var r2 = 0;
-          for (let index = 0; index < a.Country_Name.length; index++) {
-            r1 = r1 + a.Country_Name.charCodeAt(index);
+          for (let index = 0; index < a.name.length; index++) {
+            r1 = r1 + a.name.charCodeAt(index);
           }
-          for (let index = 0; index < b.Country_Name.length; index++) {
-            r2 = r2 + b.Country_Name.charCodeAt(index);
+          for (let index = 0; index < b.name.length; index++) {
+            r2 = r2 + b.name.charCodeAt(index);
           }
           return r2 - r1;
         } else {
@@ -230,11 +234,11 @@ function draw(data) {
         if (Number(a.value) == Number(b.value)) {
           var r1 = 0;
           var r2 = 0;
-          for (let index = 0; index < a.Country_Name.length; index++) {
-            r1 = r1 + a.Country_Name.charCodeAt(index);
+          for (let index = 0; index < a.name.length; index++) {
+            r1 = r1 + a.name.charCodeAt(index);
           }
-          for (let index = 0; index < b.Country_Name.length; index++) {
-            r2 = r2 + b.Country_Name.charCodeAt(index);
+          for (let index = 0; index < b.name.length; index++) {
+            r2 = r2 + b.name.charCodeAt(index);
           }
           return r2 - r1;
         } else {
@@ -243,23 +247,22 @@ function draw(data) {
       });
     }
   }
-  
-  // 从data中取出当次年分的所有成员，放入currentData中
+
   function getCurrentData(date) {
     rate = [];
     currentData = [];
     indexList = [];
 
     data.forEach(element => {
-        // 构造tmp_country，主要是取国家对应年份的gdp
-        tmp_country = {};
-        tmp_country["Country_Name"] = element["Country_Name"];
-        tmp_country["Country_Code"] = element["Country_Code"];
-        tmp_country["Indicator_Name"] = element["Indicator_Name"];
-        tmp_country["Indicator_Code"] = element["Indicator_Code"];
-        // 原代码中多处使用value为了方便，年份对应gdp我们直接赋值给value
-        tmp_country["value"] = element[date];
-        currentData.push(tmp_country); 
+      if (element["date"] == date && parseFloat(element["value"]) != 0) {
+        if (element.name.length > config.bar_name_max) {
+          tail = "...";
+        } else {
+          tail = "";
+        }
+        element.name = element.name.slice(0, config.bar_name_max - 1) + tail;
+        currentData.push(element);
+      }
     });
 
     rate["MAX_RATE"] = 0;
@@ -280,11 +283,8 @@ function draw(data) {
         rate["MIN_RATE"] = rate[e.name];
       }
     });
-    
-    // 先对currentData进行排序
-    dataSort();
-    // 后取前max_number个成员
     currentData = currentData.slice(0, max_number);
+    dataSort();
 
     d3.transition("2")
       .each(redraw)
@@ -293,7 +293,7 @@ function draw(data) {
   }
 
   if (showMessage) {
-    // config.itemLabel显示
+    // 左1文字
     var topInfo = g
       .insert("text")
       .attr("class", "growth")
@@ -301,14 +301,14 @@ function draw(data) {
       .attr("y", text_y)
       .text(itemLabel);
 
-    // config.typeLabel显示
+    // 右1文字
     g.insert("text")
       .attr("class", "growth")
       .attr("x", text_x)
       .attr("y", text_y)
       .text(typeLabel);
 
-    // 榜首保持年份计数
+    // 榜首日期计数
     if (use_counter == true) {
       var days = g
         .insert("text")
@@ -338,7 +338,7 @@ function draw(data) {
   function redraw() {
     if (currentData.length == 0) return;
     // yScale
-    //     .domain(currentData.map(d => d.Country_Name).reverse())
+    //     .domain(currentData.map(d => d.name).reverse())
     //     .range([innerHeight, 0]);
     // x轴范围
     // 如果所有数字很大导致拉不开差距
@@ -365,7 +365,7 @@ function draw(data) {
           var self = this;
           var i = d3.interpolateDate(
             new Date(self.textContent),
-            new Date(tmp_currentdate)
+            new Date(d.date)
           );
           // var prec = (new Date(d.date) + "").split(".");
           // var round = (prec.length > 1) ? Math.pow(10, prec[1].length) : 1;
@@ -375,7 +375,7 @@ function draw(data) {
           };
         });
     } else {
-      dateLabel.text(tmp_currentdate);
+      dateLabel.text(currentdate);
     }
 
     xAxisG
@@ -395,24 +395,24 @@ function draw(data) {
     }
 
     yScale
-      .domain(currentData.map(d => d.Country_Name).reverse())
+      .domain(currentData.map(d => d.name).reverse())
       .range([innerHeight, 0]);
 
     var bar = g.selectAll(".bar").data(currentData, function (d) {
-      return d.Country_Name;
+      return d.name;
     });
 
     if (showMessage) {
       // 榜首文字
       topLabel.data(currentData).text(function (d) {
-        if (lastname == d.Country_Name) {
+        if (lastname == d.name) {
           counter.value = counter.value + step;
         } else {
           counter.value = 1;
         }
-        lastname = d.Country_Name;
-        if (d.Country_Name.length > 24) return d.Country_Name.slice(0, 23) + "...";
-        return d.Country_Name;
+        lastname = d.name;
+        if (d.name.length > 24) return d.name.slice(0, 23) + "...";
+        return d.name;
       });
       if (use_counter == true) {
         // 榜首持续时间更新
@@ -436,7 +436,7 @@ function draw(data) {
       } else if (use_type_info == true) {
         // 榜首type更新
         top_type.data(currentData).text(function (d) {
-          return d["Country Name"];
+          return d["type"];
         });
       }
     }
@@ -453,7 +453,7 @@ function draw(data) {
       barEnter
         .append("defs")
         .append("pattern")
-        .attr("id", d => d.Country_Name)
+        .attr("id", d => d.name)
         .attr("width", "100%")
         .attr("height", "100%")
         .append("image")
@@ -461,13 +461,13 @@ function draw(data) {
         .attr("y", "0")
         .attr("width", "40")
         .attr("height", "40")
-        .attr("href", d => config.imgs[Country_Name]);
+        .attr("href", d => config.imgs[d.name]);
 
       barEnter
         .append("circle")
         .attr("fill-opacity", 0)
         .attr("cy", 63)
-        .attr("fill", d => "url(#" + d.Country_Name + ")")
+        .attr("fill", d => "url(#" + d.name + ")")
         .attr("stroke-width", "0px")
         .transition("a")
         .delay(500 * interval_time)
@@ -524,7 +524,7 @@ function draw(data) {
           if (long) {
             return "";
           }
-          return d.Country_Name;
+          return d.name;
         });
     }
 
@@ -551,9 +551,9 @@ function draw(data) {
       .duration(2490 * interval_time)
       .text(function (d) {
         if (use_type_info) {
-          return d[divide_by] + "-" + d.Country_Name;
+          return d[divide_by] + "-" + d.name;
         }
-        return d.Country_Name;
+        return d.name;
       })
       .attr("x", d => {
         if (long) return 10;
@@ -588,7 +588,7 @@ function draw(data) {
           self.textContent =
             d[divide_by] +
             "-" +
-            d.Country_Name +
+            d.name +
             "  数值:" +
             d3.format(format)(Math.round(i(t) * round) / round);
         };
@@ -678,9 +678,9 @@ function draw(data) {
       .select(".barInfo")
       .text(function (d) {
         if (use_type_info) {
-          return d[divide_by] + "-" + d.Country_Name;
+          return d[divide_by] + "-" + d.name;
         }
-        return d.Country_Name;
+        return d.name;
       })
       .attr("x", d => {
         if (long) return 10;
@@ -702,7 +702,7 @@ function draw(data) {
     if (long) {
       barInfo.tween("text", function (d) {
         var self = this;
-        var str = d[divide_by] + "-" + d.Country_Name + "  数值:";
+        var str = d[divide_by] + "-" + d.name + "  数值:";
 
         var i = d3.interpolate(
             self.textContent.slice(str.length, 99),
@@ -714,7 +714,7 @@ function draw(data) {
           self.textContent =
             d[divide_by] +
             "-" +
-            d.Country_Name +
+            d.name +
             "  数值:" +
             d3.format(format)(Math.round(i(t) * round) / round);
         };
@@ -749,8 +749,8 @@ function draw(data) {
         .attr("x", d => xScale(xValue(d)) + 10);
     }
     avg =
-      (Number(currentData[0][tmp_currentdate]) +
-        Number(currentData[currentData.length - 1][tmp_currentdate])) /
+      (Number(currentData[0]["value"]) +
+        Number(currentData[currentData.length - 1]["value"])) /
       2;
 
     var barExit = bar
@@ -770,13 +770,13 @@ function draw(data) {
     barExit
       .select("rect")
       .attr("fill-opacity", 0)
-      .attr("width", xScale(currentData[currentData.length - 1][tmp_currentdate]));
+      .attr("width", xScale(currentData[currentData.length - 1]["value"]));
     if (!long) {
       barExit
         .select(".value")
         .attr("fill-opacity", 0)
         .attr("x", () => {
-          return xScale(currentData[currentData.length - 1][tmp_currentdate]);
+          return xScale(currentData[currentData.length - 1]["value"]);
         });
     }
     barExit
@@ -787,19 +787,19 @@ function draw(data) {
       })
       .attr("x", () => {
         if (long) return 10;
-        return xScale(currentData[currentData.length - 1][tmp_currentdate]);
+        return xScale(currentData[currentData.length - 1]["value"]);
       });
     barExit.select(".label").attr("fill-opacity", 0);
   }
 
   function change() {
     yScale
-      .domain(currentData.map(d => d.Country_Name).reverse())
+      .domain(currentData.map(d => d.name).reverse())
       .range([innerHeight, 0]);
     if (animation == "linear") {
       g.selectAll(".bar")
         .data(currentData, function (d) {
-          return d.Country_Name;
+          return d.name;
         })
         .transition("1")
         .ease(d3.easeLinear)
@@ -810,7 +810,7 @@ function draw(data) {
     } else {
       g.selectAll(".bar")
         .data(currentData, function (d) {
-          return d.Country_Name;
+          return d.name;
         })
         .transition("1")
         .duration(baseTime * update_rate * interval_time)
@@ -820,7 +820,6 @@ function draw(data) {
     }
   }
 
-  
   var i = 0;
   var p = config.wait;
   var update_rate = config.update_rate;
@@ -830,12 +829,11 @@ function draw(data) {
       p -= 1;
       return;
     }
-    currentdate += 1;
-    tmp_currentdate = currentdate.toString()
-    getCurrentData(tmp_currentdate);
+    currentdate = time[i];
+    getCurrentData(time[i]);
     i++;
 
-    if (i >= config.total_year) {
+    if (i >= time.length) {
       window.clearInterval(inter);
     }
   }, baseTime * interval_time);
