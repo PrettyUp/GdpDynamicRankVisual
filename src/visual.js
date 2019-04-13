@@ -18,9 +18,16 @@ $("#inputfile").change(function () {
     // 读取完成后，数据保存在对象的result属性中
     // result本质上是cvs文件的文本
     // 返回的data是一个列表，各列表成员以首行为key，key同列值为value
+    // 解析回来的对象json是乱序的所以要在解析前提取divide_by和divide_color_by
+    var key_line_pos = this.result.indexOf("\r\n");
+    var key_line = this.result.substr(0,key_line_pos);
+    var key_line_list = key_line.split(",");
+    var divide_by = key_line_list[config.divide_by_column_no - 1];
+    var divide_color_by = key_line_list[config.divide_color_by_column_no - 1];
+    var before_time_column_list = key_line_list.slice(0,config.before_time_columns);
     var data = d3.csvParse(this.result);
     try {
-      draw(data);
+      draw(data, divide_by, divide_color_by, before_time_column_list);
     } catch (error) {
       alert(error);
     }
@@ -28,20 +35,20 @@ $("#inputfile").change(function () {
 });
 
 // 以下内容都只是这一个函数
-function draw(data) {
+function draw(data, divide_by, divide_color_by, before_time_column_list) {
   let rate = [];
   var auto_sort = config.auto_sort;
   var use_semilogarithmic_coordinate = config.use_semilogarithmic_coordinate;
   var big_value = config.big_value;
-  var divide_by = config.divide_by;
-  var divide_color_by = config.divide_color_by;
+  // var divide_by = config.divide_by;
+  // var divide_color_by = config.divide_color_by;
   var name_list = [];
   var changeable_color = config.changeable_color;
   data
     .sort((a, b) => Number(b.value) - Number(a.value))
     .forEach(e => {
-      if (name_list.indexOf(e.name) == -1) {
-        name_list.push(e.name);
+      if (name_list.indexOf(e[divide_by]) == -1) {
+        name_list.push(e[divide_by]);
       }
     });
   var baseTime = 3000;
@@ -51,7 +58,7 @@ function draw(data) {
     var r = 0.0;
     if (changeable_color) {
       var v =
-        Math.abs(rate[Country_Name] - rate["MIN_RATE"]) /
+        Math.abs(rate[divide_by] - rate["MIN_RATE"]) /
         (rate["MAX_RATE"] - rate["MIN_RATE"]);
       if (isNaN(v) || v == -1) {
         return colorRange(0.6);
@@ -127,7 +134,7 @@ function draw(data) {
   const innerHeight = height - margin.top - margin.bottom - 32;
   //var dateLabel_y = height - margin.top - margin.bottom - 32;;
   const xValue = d => Number(d.value);
-  const yValue = d => d.Country_Name;
+  const yValue = d => d[divide_by];
 
   const g = svg
     .append("g")
@@ -214,11 +221,11 @@ function draw(data) {
         if (Number(a.value) == Number(b.value)) {
           var r1 = 0;
           var r2 = 0;
-          for (let index = 0; index < a.Country_Name.length; index++) {
-            r1 = r1 + a.Country_Name.charCodeAt(index);
+          for (let index = 0; index < a[divide_by].length; index++) {
+            r1 = r1 + a[divide_by].charCodeAt(index);
           }
-          for (let index = 0; index < b.Country_Name.length; index++) {
-            r2 = r2 + b.Country_Name.charCodeAt(index);
+          for (let index = 0; index < b[divide_by].length; index++) {
+            r2 = r2 + b[divide_by].charCodeAt(index);
           }
           return r2 - r1;
         } else {
@@ -230,11 +237,11 @@ function draw(data) {
         if (Number(a.value) == Number(b.value)) {
           var r1 = 0;
           var r2 = 0;
-          for (let index = 0; index < a.Country_Name.length; index++) {
-            r1 = r1 + a.Country_Name.charCodeAt(index);
+          for (let index = 0; index < a[divide_by].length; index++) {
+            r1 = r1 + a[divide_by].charCodeAt(index);
           }
-          for (let index = 0; index < b.Country_Name.length; index++) {
-            r2 = r2 + b.Country_Name.charCodeAt(index);
+          for (let index = 0; index < b[divide_by].length; index++) {
+            r2 = r2 + b[divide_by].charCodeAt(index);
           }
           return r2 - r1;
         } else {
@@ -253,10 +260,15 @@ function draw(data) {
     data.forEach(element => {
         // 构造tmp_country，主要是取国家对应年份的gdp
         tmp_country = {};
-        tmp_country["Country_Name"] = element["Country_Name"];
-        tmp_country["Country_Code"] = element["Country_Code"];
-        tmp_country["Indicator_Name"] = element["Indicator_Name"];
-        tmp_country["Indicator_Code"] = element["Indicator_Code"];
+        //tmp_country["Country_Name"] = element["Country_Name"];
+        //tmp_country["Country_Code"] = element["Country_Code"];
+        //tmp_country["Indicator_Name"] = element["Indicator_Name"];
+        //tmp_country["Indicator_Code"] = element["Indicator_Code"];
+        var count = 0
+        for (index in before_time_column_list)
+        {
+            tmp_country[before_time_column_list[index]] = element[before_time_column_list[index]];
+        }
         // 原代码中多处使用value为了方便，年份对应gdp我们直接赋值给value
         tmp_country["value"] = element[date];
         currentData.push(tmp_country); 
@@ -265,19 +277,19 @@ function draw(data) {
     rate["MAX_RATE"] = 0;
     rate["MIN_RATE"] = 1;
     currentData.forEach(e => {
-      _cName = e.name;
+      _cName = e[divide_by];
       lastData.forEach(el => {
-        if (el.name == e.name) {
-          rate[e.name] = Number(Number(e.value) - Number(el.value));
+        if (el[divide_by] == e[divide_by]) {
+          rate[e[divide_by]] = Number(Number(e.value) - Number(el.value));
         }
       });
-      if (rate[e.name] == undefined) {
-        rate[e.name] = rate["MIN_RATE"];
+      if (rate[e[divide_by]] == undefined) {
+        rate[e[divide_by]] = rate["MIN_RATE"];
       }
-      if (rate[e.name] > rate["MAX_RATE"]) {
-        rate["MAX_RATE"] = rate[e.name];
-      } else if (rate[e.name] < rate["MIN_RATE"]) {
-        rate["MIN_RATE"] = rate[e.name];
+      if (rate[e[divide_by]] > rate["MAX_RATE"]) {
+        rate["MAX_RATE"] = rate[e[divide_by]];
+      } else if (rate[e[divide_by]] < rate["MIN_RATE"]) {
+        rate["MIN_RATE"] = rate[e[divide_by]];
       }
     });
     
@@ -338,7 +350,7 @@ function draw(data) {
   function redraw() {
     if (currentData.length == 0) return;
     // yScale
-    //     .domain(currentData.map(d => d.Country_Name).reverse())
+    //     .domain(currentData.map(d => d[divide_by]).reverse())
     //     .range([innerHeight, 0]);
     // x轴范围
     // 如果所有数字很大导致拉不开差距
@@ -395,24 +407,24 @@ function draw(data) {
     }
 
     yScale
-      .domain(currentData.map(d => d.Country_Name).reverse())
+      .domain(currentData.map(d => d[divide_by]).reverse())
       .range([innerHeight, 0]);
 
     var bar = g.selectAll(".bar").data(currentData, function (d) {
-      return d.Country_Name;
+      return d[divide_by];
     });
 
     if (showMessage) {
       // 榜首文字
       topLabel.data(currentData).text(function (d) {
-        if (lastname == d.Country_Name) {
+        if (lastname == d[divide_by]) {
           counter.value = counter.value + step;
         } else {
           counter.value = 1;
         }
-        lastname = d.Country_Name;
-        if (d.Country_Name.length > 24) return d.Country_Name.slice(0, 23) + "...";
-        return d.Country_Name;
+        lastname = d[divide_by];
+        if (d[divide_by].length > 24) return d[divide_by].slice(0, 23) + "...";
+        return d[divide_by];
       });
       if (use_counter == true) {
         // 榜首持续时间更新
@@ -453,7 +465,7 @@ function draw(data) {
       barEnter
         .append("defs")
         .append("pattern")
-        .attr("id", d => d.Country_Name)
+        .attr("id", d => d[divide_by])
         .attr("width", "100%")
         .attr("height", "100%")
         .append("image")
@@ -461,13 +473,13 @@ function draw(data) {
         .attr("y", "0")
         .attr("width", "40")
         .attr("height", "40")
-        .attr("href", d => config.imgs[Country_Name]);
+        .attr("href", d => config.imgs[divide_by]);
 
       barEnter
         .append("circle")
         .attr("fill-opacity", 0)
         .attr("cy", 63)
-        .attr("fill", d => "url(#" + d.Country_Name + ")")
+        .attr("fill", d => "url(#" + d[divide_by] + ")")
         .attr("stroke-width", "0px")
         .transition("a")
         .delay(500 * interval_time)
@@ -524,7 +536,7 @@ function draw(data) {
           if (long) {
             return "";
           }
-          return d.Country_Name;
+          return d[divide_by];
         });
     }
 
@@ -551,9 +563,9 @@ function draw(data) {
       .duration(2490 * interval_time)
       .text(function (d) {
         if (use_type_info) {
-          return d[divide_by] + "-" + d.Country_Name;
+          return d[divide_by] + "-" + d[divide_by];
         }
-        return d.Country_Name;
+        return d[divide_by];
       })
       .attr("x", d => {
         if (long) return 10;
@@ -588,7 +600,7 @@ function draw(data) {
           self.textContent =
             d[divide_by] +
             "-" +
-            d.Country_Name +
+            d[divide_by] +
             "  数值:" +
             d3.format(format)(Math.round(i(t) * round) / round);
         };
@@ -678,9 +690,9 @@ function draw(data) {
       .select(".barInfo")
       .text(function (d) {
         if (use_type_info) {
-          return d[divide_by] + "-" + d.Country_Name;
+          return d[divide_by] + "-" + d[divide_by];
         }
-        return d.Country_Name;
+        return d[divide_by];
       })
       .attr("x", d => {
         if (long) return 10;
@@ -702,7 +714,7 @@ function draw(data) {
     if (long) {
       barInfo.tween("text", function (d) {
         var self = this;
-        var str = d[divide_by] + "-" + d.Country_Name + "  数值:";
+        var str = d[divide_by] + "-" + d[divide_by] + "  数值:";
 
         var i = d3.interpolate(
             self.textContent.slice(str.length, 99),
@@ -714,7 +726,7 @@ function draw(data) {
           self.textContent =
             d[divide_by] +
             "-" +
-            d.Country_Name +
+            d[divide_by] +
             "  数值:" +
             d3.format(format)(Math.round(i(t) * round) / round);
         };
@@ -794,12 +806,12 @@ function draw(data) {
 
   function change() {
     yScale
-      .domain(currentData.map(d => d.Country_Name).reverse())
+      .domain(currentData.map(d => d[divide_by]).reverse())
       .range([innerHeight, 0]);
     if (animation == "linear") {
       g.selectAll(".bar")
         .data(currentData, function (d) {
-          return d.Country_Name;
+          return d[divide_by];
         })
         .transition("1")
         .ease(d3.easeLinear)
@@ -810,7 +822,7 @@ function draw(data) {
     } else {
       g.selectAll(".bar")
         .data(currentData, function (d) {
-          return d.Country_Name;
+          return d[divide_by];
         })
         .transition("1")
         .duration(baseTime * update_rate * interval_time)

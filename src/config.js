@@ -28,10 +28,12 @@
   reverse: false,
 
   // 类型根据什么字段区分？如果是name，则关闭类型显示
-  divide_by: "Country_Name",
+  // 在改造中已废弃，改用divide_by_by_column_no代替
+  // divide_by: "Country_Name",
 
   // 颜色根据什么字段区分？
-  divide_color_by: "Country_Name",
+  // 在改造中已废弃，使用divide_color_by_column_no代替
+  // divide_color_by: "Country_Name",
 
   // 字段的值与其对应的颜色值
   color: {
@@ -155,6 +157,16 @@
   // 限制bar info 展示的长度
   // limit bar info display length
   bar_name_max: 30,
+  
+  // 以下是我自己加的变量
+  // 在时间之前的列数，一定要正确填写
+  before_time_columns: 4,
+  
+  // 用于取代divide_by，消除列名硬编码
+  divide_by_column_no: 1,
+  
+  // 用于取代divide_color_by，消除列名硬编码
+  divide_color_by_column_no: 1,
   
   // 数据起始年份
   start_year: 1960,
